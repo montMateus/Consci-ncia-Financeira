@@ -1,0 +1,35 @@
+ {% extends 'base_loged.html' %}
+    {% block content %}
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <img src="{{ url_for('static', filename='conscienciafinanceira.png') }}" class="img-fluid">
+            </div>
+        </div>
+    </div>
+    <script>
+      function delete_user(user_id) {
+       if (confirm("Tem certeza que deseja excluir sua conta?")) {
+           fetch(`/home/delete_user/${user_id}`, {
+               method: 'DELETE',
+               headers: {
+                   'Content-Type': 'application/json'
+               }
+           })
+           .then(response => response.json()) 
+           .then(data => {
+               if (data.message === 'Usuário excluído com sucesso') {
+                   window.location.href = '/login';  // Redireciona para a página de login
+                   alert(data.message)
+               } else {
+                   alert(data.message);  // Mostra a mensagem retornada pelo servidor
+               }
+           })
+           .catch(error => {
+               console.error("Erro ao excluir usuário:", error);
+               alert("Erro ao excluir sua conta.");
+           });
+       }  
+   }
+   </script>
+    {% endblock content %}
