@@ -1,14 +1,14 @@
 from flask import Blueprint, session, render_template, request, redirect, url_for, flash, jsonify
 from sqlalchemy import func, distinct
 from database.database import db
-from models.models import expenses
+from models.models import ExpenseModel
 from functions_aux.expenses_graph import expensesGraph
-from repositories.expenses_repository import expenseRepository
+from repositories.expenses_repository import ExpenseRepository
 
-expenses_bp = Blueprint('expenses', __name__)
+expense_bp = Blueprint('expense', __name__)
 
-@expenses_bp.route('/expenses', methods=['GET', 'POST'])
-def list_expenses():
+@expense_bp.route('/expense', methods=['GET', 'POST'])
+def list_expense():
     user_id = session.get('user_id')
     user_name = session.get('name')
 
@@ -26,56 +26,46 @@ def list_expenses():
     total_year = None
     total_espec = None
     total_month = None
-    user_years = db.session.query(distinct(expenses.year)).filter_by(user_id=user_id).all()
+    user_years = db.session.query(distinct(ExpenseModel.year)).filter_by(user_id=user_id).all()
     user_years = [year[0] for year in user_years]
 
-    filters = [expenses.user_id == user_id]
-
-    #RECEBE OS valueES DAS 3 OPÇÕES DE FILTRO
+    filters = [ExpenseModel.user_id == user_id]
 
     if request.method == 'POST':
         filter_day = request.form.get('filter_day_select', '')
         filter_month = request.form.get('filter_month_select', '')
         filter_year = request.form.get('filter_year_select', '')
-    
-    #CASO O USUÁRIO TENHA SELECIONADO O FILTRO, SELE SERÁ ADICIONADO A LISTA 'FILTROS'
 
     if filter_day and filter_day != '':
-        filters.append(expenses.day == int(filter_day))
+        filters.append(ExpenseModel.day == int(filter_day))
     if filter_month and filter_month != '':
-        filters.append(expenses.month == expenses.month)
+        filters.append(ExpenseModel.month == ExpenseModel.month)
     if filter_year and filter_year != '':
-        filters.append(expenses.year == int(filter_year))
+        filters.append(ExpenseModel.year == int(filter_year))
 
-    #PAGINAÇÃO DAS expenses
+    list_Expense = db.session.query(ExpenseModel).filter(*filters)
+    list_Expense_pag = list_Expense.paginate(page=page, per_page=per_page)
 
-    list_expenses = db.session.query(expenses).filter(*filters)
-    list_expenses_pag = list_expenses.paginate(page=page, per_page=per_page)
-
-    if list_expenses_pag.items:
-        #CASO APENAS O FILTRO DE day NÃO TENHA SIDO SELECIONADO, O FILTRO SERÁ DE UM MÊS E ANO
+    if list_Expense_pag.items:
         if filter_day == '' and filter_month != '' and filter_year != '':
-            total_month = expenseRepository.filter_total_month(user_id, filter_month, filter_year)
-            query_filter = expenseRepository.filter_month(user_id, filter_month, filter_year)
+            total_month = ExpenseRepository(db.session).filter_total_month(user_id, filter_month, filter_year)
+            query_filter = ExpenseRepository(db.session).filter_month(user_id, filter_month, filter_year)
             graph = expensesGraph(query_filter, filter_day, filter_month, filter_year, user_id)
 
-        #CASO TODOS OS FILTROS TENHAM SIDO SEELCIONADOS, O FILTRO SERÁ DE DIA, MÊS E ANO
         elif filter_day != '' and filter_month != '' and filter_year != '':
-            total_espec = expenseRepository.filter_total_day_month_year(user_id, filter_day, filter_month, filter_year)
-            query_filter = expenseRepository.filter_day_month_year(user_id, filter_day, filter_month, filter_year)
+            total_espec = ExpenseRepository(db.session).filter_total_day_month_year(user_id, filter_day, filter_month, filter_year)
+            query_filter = ExpenseRepository(db.session).filter_day_month_year(user_id, filter_day, filter_month, filter_year)
             graph = expensesGraph(query_filter, filter_day, filter_month, filter_year, user_id)
 
-        #CASO APENAS O FILTRO DE ANO TENHA SIDO SELECIONADO, O FILTRO SERÁ APENAS PELO ANO
         elif filter_year != '' and filter_day == '' and filter_month == '':
-            total_year = expenseRepository.filter_total_year(user_id, filter_year)
-            query_filter = expenseRepository.filter_year(user_id, filter_year)
+            total_year = ExpenseRepository(db.session).filter_total_year(user_id, filter_year)
+            query_filter = ExpenseRepository(db.session).filter_year(user_id, filter_year)
             graph = expensesGraph(query_filter, filter_day, filter_month, filter_year, user_id)
     else:
-        #CASO NENHUMA expenses FOI ENCONTRADA, O SEGUINTE AVISO SERÁ RETORNADO:
         filter_warning = f'Nenhuma despesa encontrada com os filtros: day = {filter_day}, month= {filter_month}, Ano = {filter_year}'
 
     return render_template('expenses.html', 
-                           expenses=list_expenses_pag, 
+                           expenses=list_Expense_pag, 
                            total_mes=total_month, 
                            total_espec=total_espec, 
                            total_year=total_year, 
@@ -88,10 +78,7 @@ def list_expenses():
                            graph=graph,
                            user_id=user_id)
 
-#EXCLUÍ O USUÁRIO DA SESSÃO ATUAL, ATRAVÉS DO SEU ID NA ROTA
-
-#ADICIONA A DESPESA NO BANCO DE DADOS, RECEBENDO OS valueES DO FORMULÁRIO.
-@expenses_bp.route('/expenses/add', methods=['GET', 'POST'])
+@expense_bp.route('/expense/add', methods=['GET', 'POST'])
 def add_expense():
     user_id = session.get('user_id')
     if not user_id:
@@ -107,17 +94,16 @@ def add_expense():
         year = request.form.get('year')
 
         if name and type and value and day and month and year:
-            response = expenseRepository.add_expense(user_id, name, type, value, day, month, year)
+            response = ExpenseRepository(db.session).add_expense(user_id, name, type, value, day, month, year)
             if response == 'success':
-                return redirect(url_for('expenses.list_expenses'))
+                return redirect(url_for('ExpenseModel.list_Expense'))
             else:
                 flash('Valor inválido para despesa', 'danger')
     return render_template('add_expense.html')
 
-#EXCLUÍ A DESPESA, ATRAVÉS DE SEU ID NA ROTA
-@expenses_bp.route('/expenses/delete/<int:id>', methods=['DELETE'])
+@expense_bp.route('/expense/delete/<int:id>', methods=['DELETE'])
 def delete_expense(id):
-    response = expenseRepository.delete_expense(id)
+    response = ExpenseRepository(db.session).delete_expense(id)
     if response == 'not found':
         return jsonify({"message": "Despesa não encontrada"}), 404
     elif response == 'success':

@@ -1,0 +1,12 @@
+.financeiro_env/
+env/
+venv/
+
+.env
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.log

@@ -1,7 +1,7 @@
 from database.database import db
 
-class users(db.Model):
-    __tablename__ = 'users'
+class UserModel(db.Model):
+    __tablename__ = 'user'
     id = db.Column('id', db.Integer, primary_key = True)
     name = db.Column('name', db.String(100), nullable=False)
     email = db.Column('email', db.String(100), unique=True, nullable=False)
@@ -13,8 +13,8 @@ class users(db.Model):
         self.name = name
         self.password = password
 
-class expenses(db.Model):
-    __tablename__ = 'expenses'
+class ExpenseModel(db.Model):
+    __tablename__ = 'expense'
     id = db.Column('id', db.Integer, primary_key = True)
     expense_name = db.Column('expense_name', db.String(100), nullable=False)
     type = db.Column('type', db.String(50), nullable=False)
